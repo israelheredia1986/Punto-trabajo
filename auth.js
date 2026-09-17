@@ -17,19 +17,86 @@ function getSession(){
 }
 
 function setSession(user){
-  const session={id:user.id,name:user.name,email:user.email,role:user.role,roleLabel:user.roleLabel,company:user.company,team:user.team,loginAt:new Date().toISOString()};
+  const session={
+    id:user.id,
+    name:user.name,
+    email:user.email,
+    role:user.role,
+    roleLabel:user.roleLabel,
+    company:user.company,
+    companyId:user.companyId || null,
+    team:user.team,
+    teamId:user.teamId || null,
+    provider:user.provider || 'demo',
+    loginAt:new Date().toISOString()
+  };
   localStorage.setItem(AUTH_STORAGE_KEY,JSON.stringify(session));
   return session;
 }
 
-function logout(){ localStorage.removeItem(AUTH_STORAGE_KEY); renderLogin(); }
-function can(permission,role=getSession()?.role){ return Boolean(role && permissions[role]?.includes(permission)); }
+async function logout(){
+  try {
+    if(window.PuntoSupabase?.enabled) await PuntoSupabase.signOut();
+  } finally {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    renderLogin();
+  }
+}
 
-function login(email,password){
+function can(permission,role=getSession()?.role){
+  return Boolean(role && permissions[role]?.includes(permission));
+}
+
+async function loadSupabaseUserSession(){
+  const authState = await PuntoSupabase.getSession();
+  const authUser = authState?.data?.session?.user;
+  if(!authUser) return null;
+
+  const client = PuntoSupabase.client;
+  const [{data:profile},{data:membership}] = await Promise.all([
+    client.from('profiles').select('id,full_name').eq('id',authUser.id).maybeSingle(),
+    client.from('company_memberships').select('id,company_id,user_id,role,status,job_title').eq('user_id',authUser.id).eq('status','active').limit(1).maybeSingle()
+  ]);
+
+  if(!membership) return null;
+
+  const [{data:company},{data:teamMembership}] = await Promise.all([
+    client.from('companies').select('id,name').eq('id',membership.company_id).maybeSingle(),
+    client.from('team_members').select('team_id,teams(name)').eq('user_id',authUser.id).limit(1).maybeSingle()
+  ]);
+
+  const roleLabels={admin:'Administrador',supervisor:'Encargado',employee:'Empleado'};
+  return setSession({
+    id:authUser.id,
+    name:profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuario',
+    email:authUser.email || '',
+    role:membership.role,
+    roleLabel:roleLabels[membership.role] || membership.role,
+    company:company?.name || 'Empresa',
+    companyId:membership.company_id,
+    team:teamMembership?.teams?.name || (membership.role==='admin' ? 'Todos los equipos' : 'Sin equipo'),
+    teamId:teamMembership?.team_id || null,
+    provider:'supabase'
+  });
+}
+
+async function login(email,password){
   const normalizedEmail=email.trim().toLowerCase();
+
+  if(window.PuntoSupabase?.enabled){
+    const {data,error}=await PuntoSupabase.signIn(normalizedEmail,password);
+    if(!error && data?.session){
+      const session=await loadSupabaseUserSession();
+      if(session) return {ok:true,session};
+      await PuntoSupabase.signOut();
+      return {ok:false,message:'La cuenta no tiene una empresa activa asignada.'};
+    }
+    return {ok:false,message:'Email o contraseña incorrectos.'};
+  }
+
   const user=demoUsers.find(item=>item.email===normalizedEmail && item.password===password);
   if(!user) return {ok:false,message:'Email o contraseña incorrectos.'};
-  return {ok:true,session:setSession(user)};
+  return {ok:true,session:setSession({...user,provider:'demo'})};
 }
 
 function renderLogin(){
@@ -41,7 +108,7 @@ function renderLogin(){
     <form class="auth-form" onsubmit="submitLogin(event)">
       <label>Email<input id="loginEmail" type="email" autocomplete="username" placeholder="tu@email.com" required></label>
       <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required></label>
-      <button class="btn primary auth-submit">Entrar</button>
+      <button class="btn primary auth-submit" id="loginButton">Entrar</button>
       <div id="loginError" class="auth-error" role="alert"></div>
     </form>
     <div class="demo-access"><b>Acceso de demostración</b>
@@ -49,7 +116,7 @@ function renderLogin(){
       <button type="button" onclick="fillDemo('encargado@puntotrabajo.demo','super123')"><span>Encargado</span><small>encargado@puntotrabajo.demo</small></button>
       <button type="button" onclick="fillDemo('empleado@puntotrabajo.demo','empleado123')"><span>Empleado</span><small>empleado@puntotrabajo.demo</small></button>
     </div>
-    <p class="auth-note">Esta autenticación es de demostración. Después la conectaremos a un backend seguro y una base de datos real.</p>
+    <p class="auth-note">${window.PuntoSupabase?.enabled ? 'Conexión Supabase activa. El acceso usa autenticación real.' : 'Modo demo activo. Al configurar Supabase, este acceso pasará a autenticación real.'}</p>
   </div></div>`;
 }
 
@@ -59,12 +126,23 @@ function fillDemo(email,password){
   document.querySelector('#loginError').textContent='';
 }
 
-function submitLogin(event){
+async function submitLogin(event){
   event.preventDefault();
-  const result=login(document.querySelector('#loginEmail').value,document.querySelector('#loginPassword').value);
+  const button=document.querySelector('#loginButton');
   const error=document.querySelector('#loginError');
-  if(!result.ok){ error.textContent=result.message; return; }
-  if(typeof go==='function') go(result.session.role==='employee'?'worker':'dashboard');
+  button.disabled=true;
+  button.textContent='Entrando…';
+
+  try {
+    const result=await login(document.querySelector('#loginEmail').value,document.querySelector('#loginPassword').value);
+    if(!result.ok){ error.textContent=result.message; return; }
+    go(result.session.role==='employee'?'worker':'dashboard');
+  } catch(err){
+    console.error('Punto Trabajo login:',err);
+    error.textContent='No se ha podido iniciar sesión. Revisa la configuración de acceso.';
+  } finally {
+    if(button){ button.disabled=false; button.textContent='Entrar'; }
+  }
 }
 
-window.Auth={getSession,setSession,logout,can,login,demoUsers,permissions};
+window.Auth={getSession,setSession,logout,can,login,loadSupabaseUserSession,demoUsers,permissions};
