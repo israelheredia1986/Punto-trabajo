@@ -53,8 +53,12 @@ async function loadSupabaseUserSession(){
   if(!authUser) return null;
 
   const client = PuntoSupabase.client;
+  // An invitation creates the Auth user with membership status "invited".
+  // The first authenticated session activates that membership through a narrow SECURITY DEFINER RPC.
+  try { await client.rpc('activate_my_membership'); } catch (err) { console.debug('Punto Trabajo: no se pudo activar la membresía invitada.',err); }
+
   const [{data:profile},{data:membership}] = await Promise.all([
-    client.from('profiles').select('id,full_name').eq('id',authUser.id).maybeSingle(),
+    client.from('profiles').select('id,full_name,email').eq('id',authUser.id).maybeSingle(),
     client.from('company_memberships').select('id,company_id,user_id,role,status,job_title').eq('user_id',authUser.id).eq('status','active').limit(1).maybeSingle()
   ]);
 
@@ -69,7 +73,7 @@ async function loadSupabaseUserSession(){
   return setSession({
     id:authUser.id,
     name:profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'Usuario',
-    email:authUser.email || '',
+    email:profile?.email || authUser.email || '',
     role:membership.role,
     roleLabel:roleLabels[membership.role] || membership.role,
     company:company?.name || 'Empresa',
