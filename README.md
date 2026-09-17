@@ -12,7 +12,9 @@ La restricción de acceso no depende solo del menú de la aplicación: el esquem
 
 ## Estado actual
 
-La aplicación tiene una demo navegable con acceso por roles y ahora incluye una primera arquitectura de backend preparada para Supabase. Mientras no se configuren las credenciales del proyecto real, la interfaz conserva el modo demo.
+La aplicación tiene una demo navegable con acceso por roles y una primera arquitectura de backend preparada para Supabase. Mientras no se configuren las credenciales del proyecto real, la interfaz conserva el modo demo.
+
+El flujo de jornada ya está preparado para entrada, pausa, reanudación y salida. En un proyecto Supabase configurado, registra los eventos en la base de datos y guarda las coordenadas de entrada/salida cuando el dispositivo proporciona geolocalización.
 
 ## Módulos
 
@@ -36,6 +38,7 @@ El backend contempla:
 - Equipos y miembros de equipo
 - Geocercas
 - Fichajes y jornadas
+- Pausas de jornada
 - Eventos de ubicación
 - Tareas
 - Incidencias
@@ -45,8 +48,9 @@ Migraciones:
 
 - `supabase/migrations/001_initial_schema.sql`
 - `supabase/migrations/002_harden_team_rls.sql`
+- `supabase/migrations/003_time_entry_breaks.sql`
 
-## Configuración de Supabase
+## Supabase
 
 1. Abre o crea el proyecto de Supabase.
 2. Ejecuta las migraciones SQL anteriores en el SQL Editor, en ese orden.
@@ -87,4 +91,4 @@ Contraseña: `empleado123`
 
 ## Siguiente bloque funcional
 
-Con esta base, el siguiente desarrollo es conectar el **fichaje real**: entrada, pausa, reanudación y salida, registrando hora y ubicación y preparando el control de geofencing.
+Con esta base, el siguiente bloque es conectar el **geofencing real y el mapa en vivo** con los eventos de ubicación y el equipo autorizado, y después construir la pantalla de altas de empleados/usuarios sobre la misma base de datos.
