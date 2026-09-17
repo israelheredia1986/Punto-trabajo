@@ -4,31 +4,70 @@ Plataforma de gestión de equipos con fichaje, localización, tareas, horarios, 
 
 ## Roles
 
-- **Administrador:** gestión completa de empresa, usuarios, empleados, equipos, mapa, tareas, horarios, incidencias e informes.
-- **Encargado:** gestión operativa limitada a su equipo asignado.
-- **Empleado:** acceso a su jornada, tareas e información propia.
+- **Administrador / Manager:** gestión completa de la empresa, usuarios, equipos, mapa, tareas, jornadas, incidencias e informes.
+- **Encargado / Supervisor:** acceso operativo limitado a los equipos que tiene asignados.
+- **Empleado:** acceso a su jornada, sus tareas, sus fichajes y sus incidencias.
+
+La restricción de acceso no depende solo del menú de la aplicación: el esquema de Supabase incluye PostgreSQL Row Level Security (RLS) para aplicar el aislamiento de datos desde la base de datos.
 
 ## Estado actual
 
-La primera base visual ya ha evolucionado a una **demo navegable con acceso por roles**. La autenticación actual es local y de demostración; todavía no sustituye a un sistema de autenticación seguro ni a una base de datos de producción.
+La aplicación tiene una demo navegable con acceso por roles y ahora incluye una primera arquitectura de backend preparada para Supabase. Mientras no se configuren las credenciales del proyecto real, la interfaz conserva el modo demo.
 
-### Incluido ahora
+## Módulos
 
-- Pantalla de inicio de sesión.
-- Sesión local con persistencia en el navegador.
-- Tres roles: Administrador, Encargado y Empleado.
-- Menú condicionado por permisos.
-- Bloqueo de navegación de secciones no autorizadas.
-- Ámbito por equipo para el rol Encargado.
-- Sección de Usuarios y permisos para el Administrador.
-- Panel de gestión.
-- Empleados.
-- Mapa en vivo con datos simulados.
-- Tareas.
-- Horarios y fichajes con datos simulados.
-- Incidencias.
-- Informes.
-- Vista de empleado / Mi jornada.
+- Panel de gestión
+- Empleados
+- Usuarios y permisos
+- Mapa en vivo
+- Tareas
+- Horarios y fichajes
+- Incidencias
+- Informes
+- Vista de empleado
+
+## Modelo de datos inicial
+
+El backend contempla:
+
+- Empresas multiempresa
+- Perfiles de usuario
+- Membresías por empresa y rol
+- Equipos y miembros de equipo
+- Geocercas
+- Fichajes y jornadas
+- Eventos de ubicación
+- Tareas
+- Incidencias
+- Auditoría de cambios
+
+Migraciones:
+
+- `supabase/migrations/001_initial_schema.sql`
+- `supabase/migrations/002_harden_team_rls.sql`
+
+## Configuración de Supabase
+
+1. Abre o crea el proyecto de Supabase.
+2. Ejecuta las migraciones SQL anteriores en el SQL Editor, en ese orden.
+3. Configura Supabase Auth para el método de acceso elegido.
+4. Rellena `supabase-config.js` con la URL del proyecto y la clave pública/publishable.
+5. Nunca introduzcas la `service_role` key en el navegador.
+
+La aplicación carga Supabase JS v2 automáticamente cuando la configuración es válida; mientras tanto continúa funcionando en modo demo.
+
+La conexión del cliente usa `signInWithPassword` y sesiones persistentes del SDK; el acceso a datos se protege con RLS. citeturn824176search3turn824176search4turn824176search0
+
+## Seguridad
+
+Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. Las funciones `security definer` usadas para resolver membresías están en el esquema privado y fijan `search_path` explícitamente, siguiendo las recomendaciones de Supabase. citeturn824176search0turn824176search2
+
+El objetivo es que:
+
+- un empleado solo pueda consultar/modificar sus propios datos operativos;
+- un encargado pueda operar sobre su equipo asignado;
+- un administrador pueda gestionar la empresa completa;
+- una empresa no pueda acceder a los datos de otra.
 
 ## Cuentas de demostración
 
@@ -46,17 +85,6 @@ Contraseña: `empleado123`
 
 > Las credenciales anteriores son únicamente para la demo. No deben utilizarse como credenciales reales.
 
-## Próximo bloque técnico
+## Siguiente bloque funcional
 
-- Backend de autenticación seguro.
-- Base de datos multiempresa.
-- Usuarios, empleados y equipos persistentes.
-- Fichaje real con geolocalización.
-- Geofencing y alertas.
-- Notificaciones.
-- Exportación PDF/Excel real.
-- Auditoría de cambios.
-
-## Ejecutar
-
-La interfaz puede abrirse directamente o desplegarse en GitHub Pages. Para producción habrá que conectar el frontend a un backend y aplicar el control de permisos también en servidor/base de datos.
+Con esta base, el siguiente desarrollo es conectar el **fichaje real**: entrada, pausa, reanudación y salida, registrando hora y ubicación y preparando el control de geofencing.
