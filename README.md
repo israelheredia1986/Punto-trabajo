@@ -12,9 +12,23 @@ La restricción de acceso no depende solo del menú de la aplicación: el esquem
 
 ## Estado actual
 
-La aplicación tiene una demo navegable con acceso por roles y una primera arquitectura de backend preparada para Supabase. Mientras no se configuren las credenciales del proyecto real, la interfaz conserva el modo demo.
+La aplicación tiene una demo navegable con acceso por roles y una arquitectura de backend preparada para Supabase. Mientras no se configuren las credenciales del proyecto real, la interfaz conserva el modo demo.
 
-El flujo de jornada ya está preparado para entrada, pausa, reanudación y salida. En un proyecto Supabase configurado, registra los eventos en la base de datos y guarda las coordenadas de entrada/salida cuando el dispositivo proporciona geolocalización.
+El flujo de jornada está preparado para entrada, pausa, reanudación y salida. Cuando el navegador permite geolocalización, se guardan coordenadas de entrada/salida y, durante una jornada activa, se pueden registrar posiciones periódicas para el mapa.
+
+## Geofencing y mapa en vivo
+
+Ya está incluido un primer flujo funcional de geofencing:
+
+- Mapa Leaflet con posiciones de trabajadores autorizados.
+- Actualización automática de posiciones cada 15 segundos.
+- Geocercas circulares con nombre, coordenadas y radio.
+- Estado del trabajador: dentro o fuera de zona.
+- Gestión de geocercas desde el mapa para responsables.
+- Botón para rellenar una geocerca usando la ubicación actual del dispositivo.
+- En modo demo, las geocercas y posiciones se almacenan localmente.
+- Con Supabase configurado, las geocercas se leen/escriben en `geofences` y las posiciones en `location_events`.
+- El empleado recibe un aviso cuando pasa de dentro a fuera de una geocerca o viceversa.
 
 ## Módulos
 
@@ -22,6 +36,7 @@ El flujo de jornada ya está preparado para entrada, pausa, reanudación y salid
 - Empleados
 - Usuarios y permisos
 - Mapa en vivo
+- Geocercas
 - Tareas
 - Horarios y fichajes
 - Incidencias
@@ -49,6 +64,7 @@ Migraciones:
 - `supabase/migrations/001_initial_schema.sql`
 - `supabase/migrations/002_harden_team_rls.sql`
 - `supabase/migrations/003_time_entry_breaks.sql`
+- `supabase/migrations/004_geofencing_live_location.sql`
 
 ## Supabase
 
@@ -60,18 +76,18 @@ Migraciones:
 
 La aplicación carga Supabase JS v2 automáticamente cuando la configuración es válida; mientras tanto continúa funcionando en modo demo.
 
-La conexión del cliente usa `signInWithPassword` y sesiones persistentes del SDK; el acceso a datos se protege con RLS. citeturn824176search3turn824176search4turn824176search0
+La conexión del cliente usa `signInWithPassword` y sesiones persistentes del SDK; el acceso a datos se protege con RLS.
 
 ## Seguridad
 
-Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. Las funciones `security definer` usadas para resolver membresías están en el esquema privado y fijan `search_path` explícitamente, siguiendo las recomendaciones de Supabase. citeturn824176search0turn824176search2
-
-El objetivo es que:
+Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. El objetivo es que:
 
 - un empleado solo pueda consultar/modificar sus propios datos operativos;
 - un encargado pueda operar sobre su equipo asignado;
 - un administrador pueda gestionar la empresa completa;
 - una empresa no pueda acceder a los datos de otra.
+
+Las geocercas son configurables por administradores en la política SQL actual; el mapa solo muestra la información que el usuario autorizado puede consultar.
 
 ## Cuentas de demostración
 
@@ -91,4 +107,4 @@ Contraseña: `empleado123`
 
 ## Siguiente bloque funcional
 
-Con esta base, el siguiente bloque es conectar el **geofencing real y el mapa en vivo** con los eventos de ubicación y el equipo autorizado, y después construir la pantalla de altas de empleados/usuarios sobre la misma base de datos.
+Con el mapa y geofencing preparados, el siguiente bloque es terminar el **alta real de empleados y usuarios** y conectarlo con los equipos, roles y empresa de Supabase para que toda la gestión deje de depender de datos simulados.
