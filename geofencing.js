@@ -5,123 +5,16 @@
     {id:'demo-zone-1',name:'Base central',latitude:36.510,longitude:-4.885,radius_m:800,active:true},
     {id:'demo-zone-2',name:'Zona norte',latitude:36.530,longitude:-4.890,radius_m:500,active:true}
   ];
-
-  function getDemoZones(){
-    try{
-      const raw=localStorage.getItem(DEMO_ZONES_KEY);
-      if(raw) return JSON.parse(raw);
-    }catch{}
-    localStorage.setItem(DEMO_ZONES_KEY,JSON.stringify(defaultZones));
-    return defaultZones;
-  }
+  function getDemoZones(){try{const raw=localStorage.getItem(DEMO_ZONES_KEY);if(raw)return JSON.parse(raw);}catch{}localStorage.setItem(DEMO_ZONES_KEY,JSON.stringify(defaultZones));return defaultZones;}
   function saveDemoZones(zones){localStorage.setItem(DEMO_ZONES_KEY,JSON.stringify(zones));return zones;}
-  function haversineMeters(lat1,lon1,lat2,lon2){
-    const R=6371000;
-    const p1=lat1*Math.PI/180,p2=lat2*Math.PI/180;
-    const dp=(lat2-lat1)*Math.PI/180,dl=(lon2-lon1)*Math.PI/180;
-    const a=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
-    return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  }
-  function checkGeofences(latitude,longitude,zones){
-    const matches=(zones||[]).filter(z=>z.active!==false).map(z=>({
-      ...z,
-      distance_m:Math.round(haversineMeters(latitude,longitude,z.latitude,z.longitude)),
-      inside:haversineMeters(latitude,longitude,z.latitude,z.longitude)<=Number(z.radius_m)
-    }));
-    return {inside:matches.filter(x=>x.inside),nearest:matches.sort((a,b)=>a.distance_m-b.distance_m)[0]||null,all:matches};
-  }
-
-  async function getZones(){
-    const s=Auth.getSession();
-    if(window.PuntoSupabase?.enabled && s?.provider==='supabase' && s.companyId){
-      const {data,error}=await PuntoSupabase.client.from('geofences').select('id,company_id,name,latitude,longitude,radius_m,active,created_at').eq('company_id',s.companyId).order('name');
-      if(error) throw error;
-      return data||[];
-    }
-    return getDemoZones();
-  }
-
-  async function createZone(input){
-    const s=Auth.getSession();
-    if(!s || !['admin','supervisor'].includes(s.role)) throw new Error('Solo un responsable puede crear una geocerca.');
-    const name=String(input.name||'').trim();
-    const latitude=Number(input.latitude),longitude=Number(input.longitude),radius_m=Number(input.radius_m);
-    if(!name) throw new Error('Introduce un nombre para la geocerca.');
-    if(!Number.isFinite(latitude)||latitude<-90||latitude>90||!Number.isFinite(longitude)||longitude<-180||longitude>180) throw new Error('Las coordenadas no son válidas.');
-    if(!Number.isFinite(radius_m)||radius_m<10||radius_m>100000) throw new Error('El radio debe estar entre 10 y 100.000 metros.');
-    if(window.PuntoSupabase?.enabled && s.provider==='supabase'){
-      const {data,error}=await PuntoSupabase.client.from('geofences').insert({company_id:s.companyId,name,latitude,longitude,radius_m,active:true}).select('*').single();
-      if(error) throw error;
-      return data;
-    }
-    const zone={id:'demo-zone-'+Date.now(),name,latitude,longitude,radius_m,active:true};
-    const zones=getDemoZones();zones.push(zone);saveDemoZones(zones);return zone;
-  }
-
-  async function removeZone(id){
-    const s=Auth.getSession();
-    if(!s || !['admin','supervisor'].includes(s.role)) throw new Error('Sin permisos para eliminar geocercas.');
-    if(window.PuntoSupabase?.enabled && s.provider==='supabase'){
-      const {error}=await PuntoSupabase.client.from('geofences').delete().eq('id',id).eq('company_id',s.companyId);
-      if(error) throw error;
-      return true;
-    }
-    saveDemoZones(getDemoZones().filter(z=>z.id!==id));return true;
-  }
-
-  function readDemoLocations(){
-    try{return JSON.parse(localStorage.getItem(DEMO_LIVE_KEY)||'{}')}catch{return {}}
-  }
-
-  async function latestLocations(){
-    const s=Auth.getSession();
-    if(window.PuntoSupabase?.enabled && s?.provider==='supabase' && s.companyId){
-      let allowedIds=null;
-      if(s.role==='supervisor' && s.teamId){
-        const {data:members,error:membersError}=await PuntoSupabase.client.from('team_members').select('user_id').eq('team_id',s.teamId);
-        if(membersError) throw membersError;
-        allowedIds=(members||[]).map(x=>x.user_id);
-      }
-      const cutoff=new Date(Date.now()-30*60*1000).toISOString();
-      let query=PuntoSupabase.client.from('location_events').select('user_id,latitude,longitude,accuracy_m,recorded_at,inside_geofence,geofence_id,profiles(full_name)').eq('company_id',s.companyId).gte('recorded_at',cutoff).order('recorded_at',{ascending:false});
-      if(allowedIds) query=query.in('user_id',allowedIds.length?allowedIds:['00000000-0000-0000-0000-000000000000']);
-      const {data,error}=await query;
-      if(error) throw error;
-      const latest=new Map();
-      for(const row of data||[]) if(!latest.has(row.user_id)) latest.set(row.user_id,row);
-      return [...latest.values()];
-    }
-    return Object.values(readDemoLocations());
-  }
-
-  function position(){
-    return new Promise((resolve,reject)=>{
-      if(!navigator.geolocation) return reject(new Error('Este dispositivo no ofrece geolocalización.'));
-      navigator.geolocation.getCurrentPosition(
-        p=>resolve({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy_m:p.coords.accuracy,recorded_at:new Date().toISOString()}),
-        err=>reject(new Error(err?.code===1?'Permiso de ubicación denegado.':'No se pudo obtener la ubicación.')),
-        {enableHighAccuracy:true,timeout:10000,maximumAge:10000}
-      );
-    });
-  }
-
-  async function recordCurrentLocation(){
-    const s=Auth.getSession();
-    if(!s) throw new Error('No hay sesión activa.');
-    const pos=await position();
-    const zones=await getZones();
-    const zoneState=checkGeofences(pos.latitude,pos.longitude,zones);
-    const inside=zoneState.inside[0]||null;
-    const payload={...pos,user_id:s.id,name:s.name,company_id:s.companyId||'demo-company',inside_geofence:Boolean(inside),geofence_id:inside?.id||null};
-
-    if(window.PuntoSupabase?.enabled && s.provider==='supabase'){
-      const {data,error}=await PuntoSupabase.client.from('location_events').insert({company_id:s.companyId,user_id:s.id,latitude:pos.latitude,longitude:pos.longitude,accuracy_m:pos.accuracy_m,recorded_at:pos.recorded_at,source:'device',inside_geofence:Boolean(inside),geofence_id:inside?.id||null}).select('*').single();
-      if(error) throw error;
-      return {...data,name:s.name,zone:inside};
-    }
-
-    const locations=readDemoLocations();locations[s.id]=payload;localStorage.setItem(DEMO_LIVE_KEY,JSON.stringify(locations));return {...payload,zone:inside};
-  }
-
+  function haversineMeters(lat1,lon1,lat2,lon2){const R=6371000,p1=lat1*Math.PI/180,p2=lat2*Math.PI/180,dp=(lat2-lat1)*Math.PI/180,dl=(lon2-lon1)*Math.PI/180,a=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+  function checkGeofences(latitude,longitude,zones){const matches=(zones||[]).filter(z=>z.active!==false).map(z=>{const distance_m=Math.round(haversineMeters(latitude,longitude,z.latitude,z.longitude));return {...z,distance_m,inside:distance_m<=Number(z.radius_m)};});return {inside:matches.filter(x=>x.inside),nearest:matches.sort((a,b)=>a.distance_m-b.distance_m)[0]||null,all:matches};}
+  async function getZones(){const s=Auth.getSession();if(window.PuntoSupabase?.enabled&&s?.provider==='supabase'&&s.companyId){const {data,error}=await PuntoSupabase.client.from('geofences').select('id,company_id,name,latitude,longitude,radius_m,active,created_at').eq('company_id',s.companyId).order('name');if(error)throw error;return data||[];}return getDemoZones();}
+  async function createZone(input){const s=Auth.getSession();if(!s||s.role!=='admin')throw new Error('Solo el administrador puede configurar geocercas.');const name=String(input.name||'').trim(),latitude=Number(input.latitude),longitude=Number(input.longitude),radius_m=Number(input.radius_m);if(!name)throw new Error('Introduce un nombre para la geocerca.');if(!Number.isFinite(latitude)||latitude<-90||latitude>90||!Number.isFinite(longitude)||longitude<-180||longitude>180)throw new Error('Las coordenadas no son válidas.');if(!Number.isFinite(radius_m)||radius_m<10||radius_m>100000)throw new Error('El radio debe estar entre 10 y 100.000 metros.');if(window.PuntoSupabase?.enabled&&s.provider==='supabase'){const {data,error}=await PuntoSupabase.client.from('geofences').insert({company_id:s.companyId,name,latitude,longitude,radius_m,active:true}).select('*').single();if(error)throw error;return data;}const zone={id:'demo-zone-'+Date.now(),name,latitude,longitude,radius_m,active:true};const zones=getDemoZones();zones.push(zone);saveDemoZones(zones);return zone;}
+  async function removeZone(id){const s=Auth.getSession();if(!s||s.role!=='admin')throw new Error('Solo el administrador puede eliminar geocercas.');if(window.PuntoSupabase?.enabled&&s.provider==='supabase'){const {error}=await PuntoSupabase.client.from('geofences').delete().eq('id',id).eq('company_id',s.companyId);if(error)throw error;return true;}saveDemoZones(getDemoZones().filter(z=>z.id!==id));return true;}
+  function readDemoLocations(){try{return JSON.parse(localStorage.getItem(DEMO_LIVE_KEY)||'{}')}catch{return {}}}
+  async function latestLocations(){const s=Auth.getSession();if(window.PuntoSupabase?.enabled&&s?.provider==='supabase'&&s.companyId){let allowedIds=null;if(s.role==='supervisor'&&s.teamId){const {data:members,error:membersError}=await PuntoSupabase.client.from('team_members').select('user_id').eq('team_id',s.teamId);if(membersError)throw membersError;allowedIds=(members||[]).map(x=>x.user_id);}const cutoff=new Date(Date.now()-30*60*1000).toISOString();let query=PuntoSupabase.client.from('location_events').select('user_id,latitude,longitude,accuracy_m,recorded_at,inside_geofence,geofence_id,profiles(full_name)').eq('company_id',s.companyId).gte('recorded_at',cutoff).order('recorded_at',{ascending:false});if(allowedIds)query=query.in('user_id',allowedIds.length?allowedIds:['00000000-0000-0000-0000-000000000000']);const {data,error}=await query;if(error)throw error;const latest=new Map();for(const row of data||[])if(!latest.has(row.user_id))latest.set(row.user_id,row);return [...latest.values()];}return Object.values(readDemoLocations());}
+  function position(){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error('Este dispositivo no ofrece geolocalización.'));navigator.geolocation.getCurrentPosition(p=>resolve({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy_m:p.coords.accuracy,recorded_at:new Date().toISOString()}),err=>reject(new Error(err?.code===1?'Permiso de ubicación denegado.':'No se pudo obtener la ubicación.')),{enableHighAccuracy:true,timeout:10000,maximumAge:10000});});}
+  async function recordCurrentLocation(){const s=Auth.getSession();if(!s)throw new Error('No hay sesión activa.');const pos=await position(),zones=await getZones(),zoneState=checkGeofences(pos.latitude,pos.longitude,zones),inside=zoneState.inside[0]||null,payload={...pos,user_id:s.id,name:s.name,company_id:s.companyId||'demo-company',inside_geofence:Boolean(inside),geofence_id:inside?.id||null};if(window.PuntoSupabase?.enabled&&s.provider==='supabase'){const {data,error}=await PuntoSupabase.client.from('location_events').insert({company_id:s.companyId,user_id:s.id,latitude:pos.latitude,longitude:pos.longitude,accuracy_m:pos.accuracy_m,recorded_at:pos.recorded_at,source:'device',inside_geofence:Boolean(inside),geofence_id:inside?.id||null}).select('*').single();if(error)throw error;return {...data,name:s.name,zone:inside};}const locations=readDemoLocations();locations[s.id]=payload;localStorage.setItem(DEMO_LIVE_KEY,JSON.stringify(locations));return {...payload,zone:inside};}
   window.PuntoGeo={getZones,createZone,removeZone,latestLocations,position,recordCurrentLocation,checkGeofences,haversineMeters};
 })();
