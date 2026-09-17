@@ -16,6 +16,8 @@ La aplicación tiene una demo navegable con acceso por roles y una arquitectura 
 
 El flujo de jornada está preparado para entrada, pausa, reanudación y salida. Cuando el navegador permite geolocalización, se guardan coordenadas de entrada/salida y, durante una jornada activa, se pueden registrar posiciones periódicas para el mapa.
 
+El bloque operativo de **Tareas, Incidencias y Horarios** ya está conectado en la interfaz al backend de Supabase cuando existe una sesión real: las listas se leen desde las tablas, las acciones escriben cambios y los filtros de fechas/estado se resuelven sobre datos reales. El modo demo continúa disponible mientras no haya configuración de Supabase.
+
 ## Geofencing y mapa en vivo
 
 Ya está incluido un primer flujo funcional de geofencing:
@@ -44,6 +46,16 @@ El panel **Empleados / Usuarios** ya incluye:
 - Activación automática de la membresía invitada en el primer inicio de sesión.
 
 La invitación de Auth se ejecuta en una Edge Function para que la clave secreta nunca llegue al navegador.
+
+## Operaciones conectadas a Supabase
+
+El archivo `operations-supabase.js` reemplaza las pantallas simuladas de:
+
+- **Tareas:** carga tareas desde `tasks`, permite asignarlas a usuarios visibles, cambiar estado y filtrar por estado.
+- **Incidencias:** carga `incidents`, permite crear incidencias dentro del ámbito permitido y pasar entre abierta, en revisión y cerrada.
+- **Horarios:** carga `time_entries` y `time_entry_breaks`, calcula la duración descontando pausas y permite cambiar entre día, semana y mes.
+
+Los permisos siguen dependiendo de RLS; la interfaz no es la barrera de seguridad.
 
 ## Módulos
 
@@ -82,6 +94,7 @@ Migraciones, en este orden:
 4. `supabase/migrations/004_geofencing_live_location.sql`
 5. `supabase/migrations/005_employee_onboarding.sql`
 6. `supabase/migrations/006_profile_email.sql`
+7. `supabase/migrations/007_operations_rls.sql`
 
 Edge Function:
 
@@ -132,4 +145,4 @@ Contraseña: `empleado123`
 
 ## Siguiente bloque funcional
 
-Con el alta de usuarios y equipos preparada, el siguiente bloque es conectar **tareas, incidencias y horarios** directamente a Supabase y sustituir progresivamente los datos simulados del panel por datos reales.
+El siguiente bloque es sustituir progresivamente los datos simulados del **panel principal e informes**, completar la exportación PDF y cerrar los flujos de auditoría/actividad sobre las operaciones reales.
