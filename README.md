@@ -18,15 +18,17 @@ El flujo de jornada está preparado para entrada, pausa, reanudación y salida. 
 
 Las pantallas de **Tareas, Incidencias, Horarios, Panel e Informes** ya tienen una ruta de datos real para Supabase. El modo demo se mantiene como fallback mientras no haya configuración válida.
 
+La **vista móvil del empleado** muestra únicamente su jornada, sus tareas, sus incidencias y su estado de ubicación; no contiene acceso operativo al resto de la plantilla.
+
 ## Geofencing y mapa en vivo
 
-Ya está incluido un primer flujo funcional de geofencing:
+Ya está incluido un flujo funcional de geofencing:
 
 - Mapa Leaflet con posiciones de trabajadores autorizados.
 - Actualización automática de posiciones cada 15 segundos.
 - Geocercas circulares con nombre, coordenadas y radio.
 - Estado del trabajador: dentro, fuera o sin geocerca configurada.
-- Gestión de geocercas desde el mapa para responsables.
+- Gestión de geocercas reservada al administrador.
 - Botón para rellenar una geocerca usando la ubicación actual del dispositivo.
 - En modo demo, las geocercas y posiciones se almacenan localmente.
 - Con Supabase configurado, las geocercas se leen/escriben en `geofences` y las posiciones en `location_events`.
@@ -68,6 +70,28 @@ La invitación de Auth se ejecuta en una Edge Function para que la clave secreta
 - Exportación mediante el diálogo de impresión del navegador para guardar el informe como PDF.
 - RLS mantiene el ámbito de empresa/equipo del usuario.
 
+## Vista móvil del empleado
+
+`worker-mobile.js` y `worker-mobile.css` añaden una vista optimizada para móvil:
+
+- Fichar entrada, pausa, reanudación y salida.
+- Tiempo acumulado de la jornada.
+- Tareas asignadas al empleado.
+- Incidencias propias.
+- Estado de ubicación durante la jornada.
+- Sin listado de otros empleados ni acceso a datos de otros equipos.
+
+## Seguridad y Data API
+
+`supabase/migrations/008_data_api_grants.sql` limita explícitamente los grants del Data API:
+
+- `anon` no recibe acceso a las tablas operativas.
+- `authenticated` recibe únicamente las operaciones necesarias para la aplicación.
+- `audit_logs` no se expone al navegador.
+- RLS permanece activado en todas las tablas públicas usadas por la aplicación.
+
+La batería `supabase/tests/001_security_access.test.sql` comprueba que las tablas operativas tienen RLS y que el rol `anon` no dispone de lectura.
+
 ## Módulos
 
 - Panel de gestión
@@ -79,7 +103,7 @@ La invitación de Auth se ejecuta en una Edge Function para que la clave secreta
 - Horarios y fichajes
 - Incidencias
 - Informes
-- Vista de empleado
+- Vista móvil de empleado
 
 ## Modelo de datos inicial
 
@@ -106,6 +130,7 @@ Migraciones, en este orden:
 5. `supabase/migrations/005_employee_onboarding.sql`
 6. `supabase/migrations/006_profile_email.sql`
 7. `supabase/migrations/007_operations_rls.sql`
+8. `supabase/migrations/008_data_api_grants.sql`
 
 Edge Function:
 
@@ -126,7 +151,7 @@ Supabase documenta que las claves publishable son apropiadas para código que ll
 
 ## Seguridad
 
-Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. El aislamiento se aplica también a empresas y equipos, no solo a la interfaz.
+Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. El aislamiento se aplica también a empresas y equipos, no solo a la interfaz. Supabase recomienda combinar los grants con RLS y especificar el rol de la política con `TO authenticated`/`TO anon`. citeturn624237search0turn624237search5
 
 El objetivo es que:
 
@@ -135,8 +160,6 @@ El objetivo es que:
 - un administrador pueda gestionar la empresa completa;
 - una empresa no pueda acceder a los datos de otra;
 - las claves privilegiadas no lleguen al navegador.
-
-Las Edge Functions pueden recibir el JWT del usuario autenticado y utilizar un cliente privilegiado solo dentro del entorno servidor, que es el patrón documentado por Supabase para operaciones administrativas. citeturn962652search3turn962652search6
 
 ## Cuentas de demostración
 
@@ -156,4 +179,4 @@ Contraseña: `empleado123`
 
 ## Siguiente bloque funcional
 
-Con tareas, incidencias, horarios, Panel e Informes conectados a Supabase, el siguiente bloque es completar la **experiencia de empleado en móvil**, endurecer los flujos del mapa/geofencing y preparar una batería de pruebas de permisos antes de desplegar el proyecto real.
+El siguiente bloque será preparar el **despliegue del proyecto Supabase real y una prueba funcional completa por rol**, pero no se ejecutará sobre un proyecto ajeno: primero habrá que seleccionar/configurar expresamente el proyecto de Punto Trabajo.
