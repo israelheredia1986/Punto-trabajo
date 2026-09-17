@@ -33,7 +33,6 @@
       if(primary){primary.dataset.action='start';primary.textContent='Fichar entrada';primary.className='btn primary big';primary.disabled=false;}
       if(secondary){secondary.dataset.action='none';secondary.textContent='Iniciar pausa';secondary.disabled=true;secondary.className='btn secondary big';}
       if(clock) clock.textContent='00:00';
-      if(typeof PuntoWorker!=='undefined') PuntoWorker.refresh().catch(()=>{});
       return;
     }
 
