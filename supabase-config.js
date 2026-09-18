@@ -1,6 +1,6 @@
 // Punto Trabajo · Supabase browser configuration
-// Replace these values in your deployed environment. Never put the service_role key here.
+// The publishable key is safe for browser use; never put a service_role/secret key here.
 window.PUNTO_TRABAJO_SUPABASE = {
-  url: 'https://TU-PROYECTO.supabase.co',
-  anonKey: 'TU_SUPABASE_ANON_KEY'
+  url: 'https://flfwqedhoqtgsrcqyznj.supabase.co',
+  anonKey: 'sb_publishable_J7hPa2XogUoV3GnIJvXIEQ_kamDJh_G'
 };
