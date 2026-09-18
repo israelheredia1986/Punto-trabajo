@@ -92,6 +92,18 @@ La invitación de Auth se ejecuta en una Edge Function para que la clave secreta
 
 La batería `supabase/tests/001_security_access.test.sql` comprueba que las tablas operativas tienen RLS y que el rol `anon` no dispone de lectura.
 
+## Validación automática
+
+`.github/workflows/ci.yml` valida cada cambio en `main` y en pull requests:
+
+- sintaxis de todos los archivos JavaScript del proyecto;
+- existencia de los módulos frontend requeridos;
+- que `supabase-config.js` siga siendo un placeholder seguro mientras no se seleccione el proyecto real;
+- existencia y orden de las migraciones 001–008;
+- existencia de la prueba de seguridad.
+
+Esto evita que un cambio llegue a despliegue rompiendo JavaScript o conectando accidentalmente el frontend a un proyecto Supabase no autorizado.
+
 ## Despliegue
 
 El procedimiento reproducible está en [`supabase/DEPLOY.md`](./supabase/DEPLOY.md). No se debe aplicar el esquema a otro proyecto Supabase por error: primero hay que identificar expresamente el proyecto de Punto Trabajo.
@@ -150,8 +162,6 @@ Edge Function:
 6. Configura los secretos de Edge Functions desde Supabase; nunca introduzcas una secret/service-role key en el navegador.
 
 La aplicación carga Supabase JS v2 automáticamente cuando la configuración es válida; mientras tanto continúa funcionando en modo demo.
-
-Supabase documenta que las claves publishable son apropiadas para código que llega al navegador, mientras que las secret keys deben permanecer en funciones/backend y pueden saltarse RLS. La invitación de usuarios mediante `auth.admin.inviteUserByEmail` es una operación administrativa y debe ejecutarse en un entorno confiable.
 
 ## Seguridad
 
