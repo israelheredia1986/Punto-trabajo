@@ -1,0 +1,63 @@
+name: Punto Trabajo CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=( *.js )
+          for file in "${files[@]}"; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+
+      - name: Check required frontend files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in             index.html             styles.css             auth.js             supabase-config.js             supabase-client.js             time-tracking.js             geofencing.js             live-map.js             live-location.js             worker-actions.js             worker-mobile.js             worker-mobile.css             employee-management.js             employee-management.css             operations-supabase.js             dashboard-reports-supabase.js; do
+            test -f "$file"
+          done
+
+      - name: Ensure Supabase browser config is still a safe placeholder
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "TU-PROYECTO.supabase.co" supabase-config.js
+          grep -q "TU_SUPABASE_ANON_KEY" supabase-config.js
+
+      - name: Check SQL migration ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            "supabase/migrations/001_initial_schema.sql"
+            "supabase/migrations/002_harden_team_rls.sql"
+            "supabase/migrations/003_time_entry_breaks.sql"
+            "supabase/migrations/004_geofencing_live_location.sql"
+            "supabase/migrations/005_employee_onboarding.sql"
+            "supabase/migrations/006_profile_email.sql"
+            "supabase/migrations/007_operations_rls.sql"
+            "supabase/migrations/008_data_api_grants.sql"
+          )
+          for file in "${expected[@]}"; do
+            test -f "$file"
+          done
+
+      - name: Validate deployment test exists
+        shell: bash
+        run: test -f supabase/tests/001_security_access.test.sql
