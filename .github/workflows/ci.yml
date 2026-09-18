@@ -55,6 +55,7 @@ jobs:
             "supabase/migrations/007_operations_rls.sql"
             "supabase/migrations/008_data_api_grants.sql"
             "supabase/migrations/009_security_hardening.sql"
+            "supabase/migrations/010_hide_privileged_membership_activation.sql"
           )
           for file in "${expected[@]}"; do
             test -f "$file"
