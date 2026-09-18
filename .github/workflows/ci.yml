@@ -63,3 +63,4 @@ jobs:
       - name: Validate deployment test exists
         shell: bash
         run: test -f supabase/tests/001_security_access.test.sql
+          test -f supabase/tests/002_role_access.test.sql
