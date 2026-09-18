@@ -27,7 +27,7 @@ insert into public.companies (id,name,created_by)
 values ('cccccccc-cccc-cccc-cccc-cccccccccccc','Other Security Company','55555555-5555-5555-5555-555555555555');
 
 insert into public.company_memberships(company_id,user_id,role,status,job_title) values
-('cccccccc-cccc-cccc-cccc-cccccccccccc','55555555-5555-5555-5555-555555555555','admin','active','Other Admin'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','supervisor','active','Supervisor'),
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','supervisor','active','Supervisor'),
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','33333333-3333-3333-3333-333333333333','employee','active','Empleado A'),
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','44444444-4444-4444-4444-444444444444','employee','active','Empleado B');
 
