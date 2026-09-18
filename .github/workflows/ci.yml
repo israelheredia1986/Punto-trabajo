@@ -33,12 +33,13 @@ jobs:
             test -f "$file"
           done
 
-      - name: Ensure Supabase browser config is still a safe placeholder
+      - name: Validate Supabase browser config is connected to the dedicated project
         shell: bash
         run: |
           set -euo pipefail
-          grep -q "TU-PROYECTO.supabase.co" supabase-config.js
-          grep -q "TU_SUPABASE_ANON_KEY" supabase-config.js
+          grep -q "https://flfwqedhoqtgsrcqyznj.supabase.co" supabase-config.js
+          grep -q "sb_publishable_" supabase-config.js
+          ! grep -Eq "service_role|SUPABASE_SERVICE_ROLE|eyJ.*service_role" supabase-config.js
 
       - name: Check SQL migration ordering
         shell: bash
@@ -53,6 +54,7 @@ jobs:
             "supabase/migrations/006_profile_email.sql"
             "supabase/migrations/007_operations_rls.sql"
             "supabase/migrations/008_data_api_grants.sql"
+            "supabase/migrations/009_security_hardening.sql"
           )
           for file in "${expected[@]}"; do
             test -f "$file"
