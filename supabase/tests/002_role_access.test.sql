@@ -11,19 +11,23 @@ insert into auth.users (
 ('11111111-1111-1111-1111-111111111111','authenticated','authenticated','security-admin@test.local',now(),now(),now(),'{}','{"full_name":"Security Admin"}',false,false),
 ('22222222-2222-2222-2222-222222222222','authenticated','authenticated','security-supervisor@test.local',now(),now(),now(),'{}','{"full_name":"Security Supervisor"}',false,false),
 ('33333333-3333-3333-3333-333333333333','authenticated','authenticated','security-employee-a@test.local',now(),now(),now(),'{}','{"full_name":"Security Employee A"}',false,false),
-('44444444-4444-4444-4444-444444444444','authenticated','authenticated','security-employee-b@test.local',now(),now(),now(),'{}','{"full_name":"Security Employee B"}',false,false);
+('44444444-4444-4444-4444-444444444444','authenticated','authenticated','security-employee-b@test.local',now(),now(),now(),'{}','{"full_name":"Security Employee B"}',false,false),
+('55555555-5555-5555-5555-555555555555','authenticated','authenticated','security-other-admin@test.local',now(),now(),now(),'{}','{"full_name":"Other Company Admin"}',false,false);
 
 insert into public.companies (id,name,created_by)
 values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Security Test Company','11111111-1111-1111-1111-111111111111');
 
 insert into public.profiles(id,full_name,email) values
-('22222222-2222-2222-2222-222222222222','Security Supervisor','security-supervisor@test.local'),
+('55555555-5555-5555-5555-555555555555','Other Company Admin','security-other-admin@test.local'),('22222222-2222-2222-2222-222222222222','Security Supervisor','security-supervisor@test.local'),
 ('33333333-3333-3333-3333-333333333333','Security Employee A','security-employee-a@test.local'),
 ('44444444-4444-4444-4444-444444444444','Security Employee B','security-employee-b@test.local')
 on conflict(id) do update set full_name=excluded.full_name,email=excluded.email;
 
+insert into public.companies (id,name,created_by)
+values ('cccccccc-cccc-cccc-cccc-cccccccccccc','Other Security Company','55555555-5555-5555-5555-555555555555');
+
 insert into public.company_memberships(company_id,user_id,role,status,job_title) values
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','supervisor','active','Supervisor'),
+('cccccccc-cccc-cccc-cccc-cccccccccccc','55555555-5555-5555-5555-555555555555','admin','active','Other Admin'),('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','supervisor','active','Supervisor'),
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','33333333-3333-3333-3333-333333333333','employee','active','Empleado A'),
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','44444444-4444-4444-4444-444444444444','employee','active','Empleado B');
 
@@ -46,6 +50,9 @@ insert into public.time_entries(id,company_id,user_id,started_at,status) values
 insert into public.geofences(id,company_id,name,latitude,longitude,radius_m)
 values ('aaaa0005-aaaa-aaaa-aaaa-aaaaaaaaaaaa','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','Zona test',36,-5,100);
 
+insert into public.tasks(id,company_id,title,assigned_to,team_id,created_by)
+values ('cccc0006-cccc-cccc-cccc-cccccccccccc','cccccccc-cccc-cccc-cccc-cccccccccccc','Other Company Task','55555555-5555-5555-5555-555555555555',null,'55555555-5555-5555-5555-555555555555');
+
 create temp table security_results (
   role_name text not null,
   test text not null,
@@ -65,6 +72,10 @@ insert into security_results
 select 'admin','sees all tasks','2',count(*)::text,count(*)=2 from public.tasks where company_id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 insert into security_results
 select 'admin','sees all time entries','2',count(*)::text,count(*)=2 from public.time_entries where company_id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+insert into security_results
+select 'admin','cannot see other company task','0',count(*)::text,count(*)=0 from public.tasks where id='cccc0006-cccc-cccc-cccc-cccccccccccc';
+insert into security_results
+select 'admin','cannot see other company membership','0',count(*)::text,count(*)=0 from public.company_memberships where company_id='cccccccc-cccc-cccc-cccc-cccccccccccc';
 
 -- Supervisor: only users/tasks/time entries belonging to supervised team.
 set local "request.jwt.claim.sub" = '22222222-2222-2222-2222-222222222222';
