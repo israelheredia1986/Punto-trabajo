@@ -92,6 +92,10 @@ La invitación de Auth se ejecuta en una Edge Function para que la clave secreta
 
 La batería `supabase/tests/001_security_access.test.sql` comprueba que las tablas operativas tienen RLS y que el rol `anon` no dispone de lectura.
 
+## Despliegue
+
+El procedimiento reproducible está en [`supabase/DEPLOY.md`](./supabase/DEPLOY.md). No se debe aplicar el esquema a otro proyecto Supabase por error: primero hay que identificar expresamente el proyecto de Punto Trabajo.
+
 ## Módulos
 
 - Panel de gestión
@@ -147,11 +151,11 @@ Edge Function:
 
 La aplicación carga Supabase JS v2 automáticamente cuando la configuración es válida; mientras tanto continúa funcionando en modo demo.
 
-Supabase documenta que las claves publishable son apropiadas para código que llega al navegador, mientras que las secret keys deben permanecer en funciones/backend y pueden saltarse RLS. La invitación de usuarios mediante `auth.admin.inviteUserByEmail` es una operación administrativa y debe ejecutarse en un entorno confiable. citeturn962652search2turn962652search4turn962652search0
+Supabase documenta que las claves publishable son apropiadas para código que llega al navegador, mientras que las secret keys deben permanecer en funciones/backend y pueden saltarse RLS. La invitación de usuarios mediante `auth.admin.inviteUserByEmail` es una operación administrativa y debe ejecutarse en un entorno confiable.
 
 ## Seguridad
 
-Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. El aislamiento se aplica también a empresas y equipos, no solo a la interfaz. Supabase recomienda combinar los grants con RLS y especificar el rol de la política con `TO authenticated`/`TO anon`. citeturn624237search0turn624237search5
+Las tablas expuestas al Data API están protegidas con RLS y las políticas están separadas por operación. El aislamiento se aplica también a empresas y equipos, no solo a la interfaz.
 
 El objetivo es que:
 
@@ -179,4 +183,4 @@ Contraseña: `empleado123`
 
 ## Siguiente bloque funcional
 
-El siguiente bloque será preparar el **despliegue del proyecto Supabase real y una prueba funcional completa por rol**, pero no se ejecutará sobre un proyecto ajeno: primero habrá que seleccionar/configurar expresamente el proyecto de Punto Trabajo.
+El backend ya está preparado para el despliegue real. El siguiente paso es seleccionar el proyecto Supabase de Punto Trabajo, aplicar las migraciones y ejecutar la prueba funcional completa de administrador, encargado y empleado.
