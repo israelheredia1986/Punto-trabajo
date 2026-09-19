@@ -56,6 +56,26 @@ export default {
         if (!team) return json({ error: 'El equipo seleccionado no pertenece a esta empresa.' }, 400)
       }
 
+      const { data: existingProfile, error: existingProfileError } = await ctx.supabaseAdmin
+        .from('profiles')
+        .select('id,email')
+        .eq('email', email)
+        .maybeSingle()
+      if (existingProfileError) throw existingProfileError
+      if (existingProfile?.id) {
+        const { data: existingMembership, error: existingMembershipError } = await ctx.supabaseAdmin
+          .from('company_memberships')
+          .select('id,status')
+          .eq('company_id', companyId)
+          .eq('user_id', existingProfile.id)
+          .maybeSingle()
+        if (existingMembershipError) throw existingMembershipError
+        if (existingMembership) {
+          return json({ error: 'Este email ya pertenece a esta empresa.' }, 409)
+        }
+        return json({ error: 'Este email ya tiene una cuenta en Punto Trabajo. Debe incorporarse a la empresa mediante un flujo de vinculación de usuario existente.' }, 409)
+      }
+
       const { data: invited, error: inviteError } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
         data: {
           full_name: fullName,
