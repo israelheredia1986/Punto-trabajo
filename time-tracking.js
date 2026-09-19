@@ -169,5 +169,27 @@
     return `${h}:${m}`;
   }
 
-  window.TimeTracking={getCurrent,start,startBreak,endBreak,end,durationMs,formatDuration};
+  async function history(days=31){
+    const session=Auth.getSession();
+    if(!session) return [];
+    const since=new Date(Date.now()-Math.max(1,days)*86400000).toISOString();
+    if(window.PuntoSupabase?.enabled && session.provider==='supabase'){
+      const {data,error}=await PuntoSupabase.client
+        .from('time_entries')
+        .select('id,started_at,ended_at,status,start_latitude,start_longitude,end_latitude,end_longitude,time_entry_breaks(id,started_at,ended_at,reason)')
+        .eq('user_id',session.id)
+        .gte('started_at',since)
+        .order('started_at',{ascending:false});
+      if(error) throw error;
+      return data||[];
+    }
+    const current=getDemo();
+    return current?[current]:[];
+  }
+
+  function netDurationMs(entry){
+    return durationMs(entry, entry?.ended_at ? new Date(entry.ended_at).getTime() : Date.now());
+  }
+
+  window.TimeTracking={getCurrent,start,startBreak,endBreak,end,history,durationMs,netDurationMs,formatDuration};
 })();
