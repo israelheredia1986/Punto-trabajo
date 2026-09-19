@@ -149,4 +149,4 @@ async function submitLogin(event){
   }
 }
 
-window.Auth={getSession,setSession,logout,can,login,loadSupabaseUserSession,demoUsers,permissions};
+async function bootAuth(){ if(!window.PuntoSupabase?.enabled)return; try{const session=await loadSupabaseUserSession(); if(session&&typeof go==='function')go(session.role==='employee'?'worker':'dashboard');}catch(err){console.debug('Punto Trabajo: no se pudo restaurar la sesión Supabase.',err);} } window.Auth={getSession,setSession,logout,can,login,loadSupabaseUserSession,bootAuth,demoUsers,permissions}; if(window.PuntoSupabase?.enabled)setTimeout(bootAuth,0);
