@@ -337,8 +337,17 @@
       const flags=[];
       if(e.start_latitude!=null && !e.start_geofence_id) flags.push('Entrada sin geocerca');
       if(e.end_latitude!=null && !e.end_geofence_id) flags.push('Salida sin geocerca');
-      return `<tr><td><b>${esc(e.person?.name||'Usuario')}</b><br><span class="muted">${esc(e.person?.team||'')}</span></td><td>${esc(localDateTime(e.started_at))}</td><td>${esc(e.ended_at?localDateTime(e.ended_at):'En curso')}</td><td><b>${esc(duration)}</b></td><td>${flags.length?flags.map(f=>`<span class="status alert">${esc(f)}</span>`).join(' '):'—'}</td><td>${e.status==='open'?'<span class="status pause">Abierta</span>':'<span class="status online">Cerrada</span>'}</td></tr>`;
+      const gps=e.start_latitude!=null||e.end_latitude!=null;
+      return `<tr><td><b>${esc(e.person?.name||'Usuario')}</b><br><span class="muted">${esc(e.person?.team||'')}</span></td><td>${esc(localDateTime(e.started_at))}</td><td>${esc(e.ended_at?localDateTime(e.ended_at):'En curso')}</td><td><b>${esc(duration)}</b></td><td>${gps?'<span class="status online">GPS</span>':'<span class="status alert">Sin GPS</span>'} ${flags.length?flags.map(f=>`<span class="status alert">${esc(f)}</span>`).join(' '):''}</td><td>${e.status==='open'?'<span class="status pause">Abierta</span>':'<span class="status online">Cerrada</span>'} <button class="btn secondary" onclick="PuntoOps.showEntryDetail('${e.id}')">Detalle</button></td></tr>`;
     }).join('')||emptyRow(6,'No hay fichajes en el periodo seleccionado.');
+  }
+
+  function showEntryDetail(id){
+    const e=(window.PuntoOps._hours||[]).find(x=>x.id===id); if(!e)return;
+    const breaks=e.time_entry_breaks||[];
+    const total=typeof TimeTracking!=='undefined'?TimeTracking.formatDuration(TimeTracking.durationMs(e)):'—';
+    const html=`<div class="modal-backdrop" onclick="this.remove()"><div class="modal" onclick="event.stopPropagation()"><div class="section-head"><h2>Detalle del fichaje</h2><button class="btn secondary" onclick="this.closest('.modal-backdrop').remove()">Cerrar</button></div><p><b>${esc(e.person?.name||'Usuario')}</b></p><p>Entrada: ${esc(localDateTime(e.started_at))}<br>Salida: ${esc(e.ended_at?localDateTime(e.ended_at):'En curso')}<br>Tiempo trabajado: <b>${esc(total)}</b></p><h3>Pausas</h3>${breaks.map(b=>`<div class="task">${esc(b.reason||'Pausa')} · ${esc(localDateTime(b.started_at))} → ${esc(b.ended_at?localDateTime(b.ended_at):'En curso')}</div>`).join('')||'<div class="empty">Sin pausas.</div>'}</div></div>`;
+    document.body.insertAdjacentHTML('beforeend',html);
   }
 
   async function hoursPage(){
@@ -394,7 +403,7 @@
     refreshHours,
     focus,
     _tasks:[],
-    _incidents:[]
+    _incidents:[],\n    _hours:[]
   };
 
   window.tasksPage=tasksPage;
