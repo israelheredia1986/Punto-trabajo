@@ -9,6 +9,10 @@
       if(!this.enabled) return { data:null, error:new Error('Supabase no está configurado todavía.') };
       return this.client.auth.signInWithPassword({email, password});
     },
+    async signUp(email,password,metadata={}){
+      if(!this.enabled) return { data:null, error:new Error('Supabase no está configurado todavía.') };
+      return this.client.auth.signUp({email,password,options:{data:metadata}});
+    },
     async signOut(){
       if(!this.enabled) return { error:null };
       return this.client.auth.signOut();
