@@ -283,6 +283,8 @@
     wrap.innerHTML='<div class="section-head"><h2>Detalle de incidencia</h2><button class="btn secondary">Cerrar</button></div><p><b>'+esc(i.title)+'</b></p><p>Empleado: '+esc(i.person?.name||'Empresa')+'<br>Tipo: '+esc(i.type)+'<br>Estado: '+esc(INCIDENT_LABELS[i.status]||i.status)+'<br>Creada: '+esc(localDateTime(i.created_at))+'</p><p>'+esc(i.description||'Sin descripción')+'</p>'+(i.resolved_at?'<p>Resuelta: '+esc(localDateTime(i.resolved_at))+'</p>':'');
     wrap.querySelector('button').onclick=()=>modal.remove(); modal.appendChild(wrap); document.body.appendChild(modal);
   }
+  async function reopenIncident(id){ return updateIncidentStatus(id,'open'); }
+
   async function updateIncidentStatus(id,statusValue){
     if(!real()) return toastSafe('La cuenta demo no guarda cambios en Supabase.');
     if(!['open','review','closed'].includes(statusValue)) return;
