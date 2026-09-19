@@ -191,5 +191,19 @@
     return durationMs(entry, entry?.ended_at ? new Date(entry.ended_at).getTime() : Date.now());
   }
 
-  window.TimeTracking={getCurrent,start,startBreak,endBreak,end,history,durationMs,netDurationMs,formatDuration};
+  let locationTimer=null;
+  async function recordLocation(){
+    const s=Auth.getSession(); if(!s||!(window.PuntoSupabase?.enabled&&s.provider==='supabase')) return null;
+    const entry=await getCurrent(); if(!entry) return null;
+    const pos=await location(); if(!pos) return null;
+    const payload={company_id:s.companyId,user_id:s.id,latitude:pos.latitude,longitude:pos.longitude,accuracy_m:pos.accuracy_m,recorded_at:nowIso(),source:'browser',inside_geofence:null};
+    const {data,error}=await PuntoSupabase.client.from('location_events').insert(payload).select().single();
+    if(error) throw error; return data;
+  }
+  function startLocationTracking(intervalMs=60000){
+    stopLocationTracking(); recordLocation().catch(e=>console.debug('Punto Trabajo ubicación:',e));
+    locationTimer=setInterval(()=>recordLocation().catch(e=>console.debug('Punto Trabajo ubicación:',e)),intervalMs);
+  }
+  function stopLocationTracking(){if(locationTimer){clearInterval(locationTimer);locationTimer=null}}
+  window.TimeTracking={getCurrent,start,startBreak,endBreak,end,history,durationMs,netDurationMs,formatDuration,recordLocation,startLocationTracking,stopLocationTracking};
 })();
