@@ -196,16 +196,29 @@
   };
 
   window.manageEmployee=function(id){
-    const p=currentPeople.find(x=>x.id===id);
-    if(!p)return;
-    const action=p.status==='disabled'?'activar':'desactivar';
-    if(p.role==='admin'){toast('La cuenta de administrador se gestiona desde Supabase Auth.');return;}
-    if(window.PuntoSupabase?.enabled && session().provider==='supabase'){
-      toast('La edición avanzada de usuarios se añadirá con el control de estado y reasignación de equipo.');
-      return;
+    const p=currentPeople.find(x=>x.id===id); if(!p)return;
+    const s=session();
+    if(p.role==='admin'){toast('La cuenta de administrador no se modifica desde esta pantalla.');return;}
+    if(window.PuntoSupabase?.enabled && s.provider==='supabase'){
+      const teams=currentTeams.map(t=>`<option value="${esc(t.id)}" ${t.id===p.teamId?'selected':''}>${esc(t.name)}</option>`).join('');
+      document.body.insertAdjacentHTML('beforeend',`<div class="employee-modal-backdrop" id="employeeManageModal" role="dialog" aria-modal="true"><div class="employee-modal"><div class="employee-modal-head"><div><h2>Gestionar empleado</h2><p class="muted">${esc(p.name)} · ${esc(p.email||'')}</p></div><button class="employee-modal-close" onclick="closeManageEmployeeModal()">×</button></div><div class="employee-modal-body"><form class="form" onsubmit="saveEmployeeManagement(event,'${esc(p.id)}')"><label>Nombre completo<input id="manageEmployeeName" value="${esc(p.name)}" disabled></label><label>Puesto<input id="manageEmployeeJob" maxlength="120" value="${esc(p.jobTitle||'')}"></label><div class="form-row"><label>Rol<select id="manageEmployeeRole"><option value="employee" ${p.role==='employee'?'selected':''}>Empleado</option><option value="supervisor" ${p.role==='supervisor'?'selected':''}>Encargado</option></select></label><label>Estado<select id="manageEmployeeStatus"><option value="active" ${p.status==='active'?'selected':''}>Activo</option><option value="invited" ${p.status==='invited'?'selected':''}>Invitado</option><option value="disabled" ${p.status==='disabled'?'selected':''}>Desactivado</option></select></label></div><label>Equipo<select id="manageEmployeeTeam"><option value="">Sin equipo</option>${teams}</select></label><div class="employee-modal-actions"><button type="button" class="btn secondary" onclick="closeManageEmployeeModal()">Cancelar</button><button type="submit" class="btn primary" id="manageEmployeeButton">Guardar cambios</button></div><div id="manageEmployeeError" class="auth-error" role="alert"></div></form></div></div></div>`);
+    }else{
+      p.status=p.status==='disabled'?'active':'disabled'; storeDemo(currentPeople); toast(`Usuario ${p.status==='active'?'activado':'desactivado'} en modo demo.`); renderEmployeesPage();
     }
-    p.status=p.status==='disabled'?'active':'disabled';
-    storeDemo(currentPeople);toast(`Usuario ${action}do en modo demo.`);renderEmployeesPage();
+  };
+  window.closeManageEmployeeModal=function(){document.querySelector('#employeeManageModal')?.remove()};
+  window.saveEmployeeManagement=async function(event,id){
+    event.preventDefault(); const p=currentPeople.find(x=>x.id===id), s=session(); if(!p)return;
+    const btn=document.querySelector('#manageEmployeeButton'), err=document.querySelector('#manageEmployeeError'); btn.disabled=true;btn.textContent='Guardando…';err.textContent='';
+    const role=document.querySelector('#manageEmployeeRole').value,statusValue=document.querySelector('#manageEmployeeStatus').value,jobTitle=document.querySelector('#manageEmployeeJob').value.trim(),teamId=document.querySelector('#manageEmployeeTeam').value||null;
+    try{
+      const client=PuntoSupabase.client;
+      const upd=await client.from('company_memberships').update({role,status:statusValue,job_title:jobTitle}).eq('id',p.membershipId).eq('company_id',s.companyId); if(upd.error)throw upd.error;
+      const del=await client.from('team_members').delete().eq('user_id',p.id); if(del.error)throw del.error;
+      if(teamId){const ins=await client.from('team_members').insert({user_id:p.id,team_id:teamId});if(ins.error)throw ins.error;}
+      toast('Cambios guardados correctamente.'); closeManageEmployeeModal(); await refreshEmployeesPage();
+    }catch(e){console.error('Punto Trabajo gestión empleado:',e);err.textContent=e?.message||'No se pudieron guardar los cambios.';}
+    finally{btn.disabled=false;btn.textContent='Guardar cambios';}
   };
 
   window.usersPage=function(){
