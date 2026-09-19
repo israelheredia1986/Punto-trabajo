@@ -62,5 +62,5 @@ function forbidden(){shell('',`<section class="card"><h1>Acceso no autorizado</h
 function addEmployee(){toast('Alta de empleado preparada para conectar con el backend')}
 function createTask(){document.querySelector('.form input')?.focus();toast('Usa el formulario para crear una tarea')}
 function toast(msg){const t=document.querySelector('#toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
-function go(page){const routes={dashboard,tasks:tasksPage,employees:employeesPage,users:usersPage,map:mapPage,hours:hoursPage,incidents:incidentsPage,reports:reportsPage,worker:workerPage};if(!session())return renderLogin();if(!Auth.can(page))return go(session().role==='employee'?'worker':'dashboard');(routes[page]||dashboard)()}
+function go(page){if(page!=='map'){clearInterval(window.puntoTrabajoMapRefresh);window.puntoTrabajoMapRefresh=null}const routes={dashboard,tasks:tasksPage,employees:employeesPage,users:usersPage,map:mapPage,hours:hoursPage,incidents:incidentsPage,reports:reportsPage,worker:workerPage};if(!session())return renderLogin();if(!Auth.can(page))return go(session().role==='employee'?'worker':'dashboard');(routes[page]||dashboard)()}
 if(session())go(session().role==='employee'?'worker':'dashboard');else renderLogin();
