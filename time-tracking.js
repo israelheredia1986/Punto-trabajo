@@ -192,13 +192,36 @@
   }
 
   let locationTimer=null;
+  function distanceMeters(lat1,lon1,lat2,lon2){
+    const R=6371000,rad=Math.PI/180,dLat=(lat2-lat1)*rad,dLon=(lon2-lon1)*rad;
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  async function evaluateGeofence(s,pos){
+    const {data:zones,error}=await PuntoSupabase.client.from('geofences').select('id,name,latitude,longitude,radius_m,active').eq('company_id',s.companyId).eq('active',true);
+    if(error) throw error;
+    if(!(zones||[]).length) return {inside:null,geofenceId:null,zone:null};
+    const matches=zones.map(z=>({...z,distance_m:distanceMeters(pos.latitude,pos.longitude,z.latitude,z.longitude)})).filter(z=>z.distance_m<=z.radius_m).sort((a,b)=>a.distance_m-b.distance_m);
+    return matches.length?{inside:true,geofenceId:matches[0].id,zone:matches[0]}:{inside:false,geofenceId:null,zone:null};
+  }
+  async function maybeCreateGeofenceIncident(s,pos,inside,zone){
+    if(inside!==false) return;
+    const since=new Date(Date.now()-30*60000).toISOString();
+    const recent=await PuntoSupabase.client.from('incidents').select('id').eq('company_id',s.companyId).eq('user_id',s.id).eq('type','geofencing').eq('status','open').gte('created_at',since).limit(1);
+    if(recent.error) throw recent.error;
+    if((recent.data||[]).length) return;
+    await PuntoSupabase.client.from('incidents').insert({company_id:s.companyId,title:'Salida de geocerca',description:'El dispositivo del empleado ha registrado una posición fuera de las geocercas activas.',user_id:s.id,type:'geofencing',status:'open',created_by:s.id});
+  }
   async function recordLocation(){
     const s=Auth.getSession(); if(!s||!(window.PuntoSupabase?.enabled&&s.provider==='supabase')) return null;
     const entry=await getCurrent(); if(!entry) return null;
     const pos=await location(); if(!pos) return null;
-    const payload={company_id:s.companyId,user_id:s.id,latitude:pos.latitude,longitude:pos.longitude,accuracy_m:pos.accuracy_m,recorded_at:nowIso(),source:'browser',inside_geofence:null};
+    const geo=await evaluateGeofence(s,pos);
+    const payload={company_id:s.companyId,user_id:s.id,latitude:pos.latitude,longitude:pos.longitude,accuracy_m:pos.accuracy_m,recorded_at:nowIso(),source:'browser',inside_geofence:geo.inside,geofence_id:geo.geofenceId};
     const {data,error}=await PuntoSupabase.client.from('location_events').insert(payload).select().single();
-    if(error) throw error; return data;
+    if(error) throw error;
+    await maybeCreateGeofenceIncident(s,pos,geo.inside,geo.zone);
+    return data;
   }
   function startLocationTracking(intervalMs=60000){
     stopLocationTracking(); recordLocation().catch(e=>console.debug('Punto Trabajo ubicación:',e));
