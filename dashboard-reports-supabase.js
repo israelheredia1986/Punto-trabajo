@@ -165,12 +165,13 @@
     if(!s) return renderLogin();
     if(!Auth.can('reports')) return forbidden();
     if(!real()){
-      shell('reports',pageTitle('Informes','El modo demo mostrará datos simulados cuando estén disponibles.','<button class="btn primary" onclick="window.print()">Exportar / imprimir</button>')+`<section class="card"><div class="empty">Conecta Supabase para generar informes reales.</div></section>`);
+      shell('reports',pageTitle('Informes','El modo demo mostrará datos simulados cuando estén disponibles.','<button class="btn primary" onclick="window.print()">Exportar / imprimir</button><button class="btn secondary" onclick="PuntoDashboard.exportReportCsv()">CSV</button>')+`<section class="card"><div class="empty">Conecta Supabase para generar informes reales.</div></section>`);
       return;
     }
     shellLoading('reports','Informes',`${esc(s.company)} · resumen de actividad.`,'<button class="btn primary" onclick="window.print()">Exportar / imprimir</button>');
     try{
       const period='month',date=today(),data=await loadReport(period,date);
+      window.PuntoDashboard._reportData=data;
       renderReport(data,period,date);
     }catch(error){
       console.error('Punto Trabajo · reports',error);
@@ -181,10 +182,20 @@
   async function refreshReports(){
     const period=document.querySelector('#reportPeriod')?.value||'month';
     const date=document.querySelector('#reportDate')?.value||today();
-    try{ const data=await loadReport(period,date); renderReport(data,period,date); }
+    try{ const data=await loadReport(period,date); window.PuntoDashboard._reportData=data; renderReport(data,period,date); }
     catch(error){ console.error(error); toastSafe(error.message||'No se pudo actualizar el informe.'); }
   }
 
+  function exportReportCsv(){
+    const data=window.PuntoDashboard._reportData; if(!data)return toastSafe('Carga primero un informe.');
+    const lines=[['Empleado','Equipo','Horas','Tareas','Completadas','Incidencias','Fuera de zona']];
+    data.people.forEach(p=>{const x=data.totals.get(p.id)||{hours:0,tasks:0,completed:0,incidents:0,geofence:0};lines.push([p.name,p.team,x.hours.toFixed(2),x.tasks,x.completed,x.incidents,x.geofence]);});
+    const csv=lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');
+    const blob=new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='informe-punto-trabajo-'+periodSafe()+'.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+  function periodSafe(){return new Date().toISOString().slice(0,10);}
+ 
   function renderReport(data,period,date){
     const total=[...data.totals.values()].reduce((a,x)=>({hours:a.hours+x.hours,tasks:a.tasks+x.tasks,completed:a.completed+x.completed,incidents:a.incidents+x.incidents,geofence:a.geofence+x.geofence}),{hours:0,tasks:0,completed:0,incidents:0,geofence:0});
     main().innerHTML=pageTitle('Informes','Resumen de horas, tareas, incidencias y geofencing.','<button class="btn primary" onclick="window.print()">Exportar / imprimir</button>')+
@@ -193,7 +204,7 @@
       <section class="card" style="margin-top:15px"><div class="section-head"><h2>Resumen por empleado</h2></div><div class="table-wrap"><table class="table"><thead><tr><th>Empleado</th><th>Horas</th><th>Tareas</th><th>Completadas</th><th>Incidencias</th><th>Fuera de zona</th></tr></thead><tbody>${reportRows(data)}</tbody></table></div></section>`;
   }
 
-  window.PuntoDashboard={dashboard,refresh:dashboard,reportsPage,refreshReports,_loadReport:loadReport};
+  window.PuntoDashboard={dashboard,refresh:dashboard,reportsPage,refreshReports,exportReportCsv,_loadReport:loadReport,_reportData:null};
   window.__PuntoOriginalDashboard=window.dashboard;
   window.dashboard=dashboard;
   window.reportsPage=reportsPage;
