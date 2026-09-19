@@ -66,19 +66,28 @@
     const s=session();
     const client=PuntoSupabase.client;
     const d=await directory();
-    const [openEntries,todayTasks,recentIncidents,recentLocations]=await Promise.all([
+    const [openEntries,todayEntries,todayTasks,recentIncidents,recentLocations]=await Promise.all([
       client.from('time_entries').select('id,user_id,started_at').eq('company_id',s.companyId).eq('status','open'),
+      client.from('time_entries').select('id,user_id,started_at,ended_at,status').eq('company_id',s.companyId).gte('started_at',new Date(`${today()}T00:00:00`).toISOString()).lt('started_at',new Date(new Date(`${today()}T00:00:00`).getTime()+86400000).toISOString()),
       client.from('tasks').select('id,title,description,assigned_to,priority,status,due_at').eq('company_id',s.companyId).gte('due_at',new Date(`${today()}T00:00:00`).toISOString()).lt('due_at',new Date(new Date(`${today()}T00:00:00`).getTime()+86400000).toISOString()).order('due_at',{ascending:true}).limit(8),
       client.from('incidents').select('id,title,user_id,type,status,created_at').eq('company_id',s.companyId).order('created_at',{ascending:false}).limit(6),
       client.from('location_events').select('id,user_id,inside_geofence,geofence_id,recorded_at').eq('company_id',s.companyId).gte('recorded_at',new Date(Date.now()-24*60*60*1000).toISOString()).order('recorded_at',{ascending:false}).limit(200)
     ]);
-    for(const res of [openEntries,todayTasks,recentIncidents,recentLocations]) if(res.error) throw res.error;
+    for(const res of [openEntries,todayEntries,todayTasks,recentIncidents,recentLocations]) if(res.error) throw res.error;
     const people=new Map(d.people.map(p=>[p.id,p]));
+    const todayEntryIds=(todayEntries.data||[]).map(e=>e.id);
+    let breaks=[];
+    if(todayEntryIds.length){const br=await client.from('time_entry_breaks').select('time_entry_id,started_at,ended_at').in('time_entry_id',todayEntryIds);if(br.error)throw br.error;breaks=br.data||[];}
+    const breakMap=new Map();
+    breaks.forEach(b=>{if(!breakMap.has(b.time_entry_id))breakMap.set(b.time_entry_id,[]);breakMap.get(b.time_entry_id).push(b);});
+    let todayHours=0;
+    for(const e of (todayEntries.data||[])){let ms=(e.ended_at?new Date(e.ended_at):new Date())-new Date(e.started_at);for(const b of (breakMap.get(e.id)||[]))ms-=Math.max(0,(new Date(b.ended_at||new Date())-new Date(b.started_at)));todayHours+=Math.max(0,ms)/3600000;}
     const outside=(recentLocations.data||[]).filter(x=>x.inside_geofence===false);
     const activeIds=new Set((openEntries.data||[]).map(x=>x.user_id));
     const activePeople=d.people.filter(p=>activeIds.has(p.id));
     return {
       people:d.people, activePeople,
+      todayHours,
       tasks:(todayTasks.data||[]).map(t=>({...t,person:people.get(t.assigned_to)})),
       incidents:(recentIncidents.data||[]).map(i=>({...i,person:people.get(i.user_id)})),
       geofenceAlerts:outside.length
@@ -97,9 +106,11 @@
     try{
       const data=await loadDashboard();
       const incidents=data.incidents.slice(0,4), tasks=data.tasks.slice(0,6);
+      const todayHoursLabel=`${Math.floor(data.todayHours)}:${String(Math.round((data.todayHours%1)*60)).padStart(2,'0')}`;
       main().innerHTML=pageTitle('Panel de gestión',`${esc(s.company)} · datos actualizados ${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`,'<button class="btn primary" onclick="PuntoDashboard.refresh()">Actualizar</button>')+
       `<div class="grid metrics">
         <div class="card metric"><small>Empleados visibles</small><strong>${data.people.length}</strong><span class="muted">según permisos</span></div>
+        <div class="card metric"><small>Horas de hoy</small><strong>${todayHoursLabel}</strong><span class="muted">jornadas registradas</span></div>
         <div class="card metric"><small>Activos ahora</small><strong>${data.activePeople.length}</strong><span class="muted">con jornada abierta</span></div>
         <div class="card metric"><small>Tareas de hoy</small><strong>${data.tasks.length}</strong><span class="muted">${data.tasks.filter(t=>t.status!=='completed').length} pendientes</span></div>
         <div class="card metric"><small>Geofencing</small><strong>${data.geofenceAlerts}</strong><span class="muted">salidas de zona últimas 24 h</span></div>
