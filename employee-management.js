@@ -198,14 +198,35 @@
   window.manageEmployee=function(id){
     const p=currentPeople.find(x=>x.id===id);
     if(!p)return;
-    const action=p.status==='disabled'?'activar':'desactivar';
     if(p.role==='admin'){toast('La cuenta de administrador se gestiona desde Supabase Auth.');return;}
-    if(window.PuntoSupabase?.enabled && session().provider==='supabase'){
-      toast('La edición avanzada de usuarios se añadirá con el control de estado y reasignación de equipo.');
-      return;
-    }
-    p.status=p.status==='disabled'?'active':'disabled';
-    storeDemo(currentPeople);toast(`Usuario ${action}do en modo demo.`);renderEmployeesPage();
+    const teamOptions='<option value="">Sin equipo</option>'+currentTeams.map(t=>`<option value="${esc(t.id)}" ${p.teamId===t.id?'selected':''}>${esc(t.name)}</option>`).join('');
+    document.body.insertAdjacentHTML('beforeend',`<div class="employee-modal-backdrop" id="employeeManageModal" role="dialog" aria-modal="true"><div class="employee-modal"><div class="employee-modal-head"><div><h2>Gestionar empleado</h2><p class="muted">${esc(p.name)} · ${esc(p.email)}</p></div><button class="employee-modal-close" onclick="closeEmployeeManageModal()">×</button></div><div class="employee-modal-body"><form class="form" onsubmit="saveEmployeeManagement(event,'${esc(p.id)}')"><label>Nombre completo<input id="manageName" maxlength="120" required value="${esc(p.name)}"></label><label>Puesto<input id="manageJobTitle" maxlength="120" value="${esc(p.jobTitle||'')}"></label><div class="form-row"><label>Rol<select id="manageRole"><option value="employee" ${p.role==='employee'?'selected':''}>Empleado</option><option value="supervisor" ${p.role==='supervisor'?'selected':''}>Encargado</option></select></label><label>Estado<select id="manageStatus"><option value="active" ${p.status==='active'?'selected':''}>Activo</option><option value="disabled" ${p.status==='disabled'?'selected':''}>Desactivado</option><option value="invited" ${p.status==='invited'?'selected':''}>Invitado</option></select></label></div><label>Equipo<select id="manageTeam">${teamOptions}</select></label><div class="employee-modal-actions"><button type="button" class="btn secondary" onclick="closeEmployeeManageModal()">Cancelar</button><button type="submit" class="btn primary" id="employeeManageButton">Guardar cambios</button></div><div id="employeeManageError" class="auth-error" role="alert"></div></form></div></div></div>`);
+  };
+  window.closeEmployeeManageModal=function(){document.querySelector('#employeeManageModal')?.remove()};
+  window.saveEmployeeManagement=async function(event,id){
+    event.preventDefault();
+    const p=currentPeople.find(x=>x.id===id); if(!p)return;
+    const button=document.querySelector('#employeeManageButton'), error=document.querySelector('#employeeManageError');
+    button.disabled=true; button.textContent='Guardando…'; error.textContent='';
+    const values={full_name:document.querySelector('#manageName').value.trim(),job_title:document.querySelector('#manageJobTitle').value.trim()||null,role:document.querySelector('#manageRole').value,status:document.querySelector('#manageStatus').value,team_id:document.querySelector('#manageTeam').value||null};
+    try{
+      if(window.PuntoSupabase?.enabled && session().provider==='supabase'){
+        const s=session();
+        const {error:me}=await PuntoSupabase.client.from('company_memberships').update({role:values.role,status:values.status,job_title:values.job_title}).eq('id',p.membershipId).eq('company_id',s.companyId);
+        if(me)throw me;
+        const {error:pr}=await PuntoSupabase.client.from('profiles').update({full_name:values.full_name}).eq('id',p.id);
+        if(pr)throw pr;
+        const {error:del}=await PuntoSupabase.client.from('team_members').delete().eq('user_id',p.id);
+        if(del)throw del;
+        if(values.team_id){ const {error:add}=await PuntoSupabase.client.from('team_members').insert({team_id:values.team_id,user_id:p.id}); if(add)throw add; }
+        toast('Empleado actualizado correctamente.');
+      }else{
+        p.name=values.full_name;p.jobTitle=values.job_title;p.role=values.role;p.roleLabel=roleText(values.role);p.status=values.status;p.teamId=values.team_id;p.team=currentTeams.find(t=>t.id===values.team_id)?.name||'Sin equipo';
+        storeDemo(currentPeople);toast('Empleado actualizado en modo demo.');
+      }
+      closeEmployeeManageModal(); await refreshEmployeesPage(); renderEmployeesPage();
+    }catch(err){console.error('Punto Trabajo gestionar empleado:',err);error.textContent=err?.message||'No se pudieron guardar los cambios.';}
+    finally{button.disabled=false;button.textContent='Guardar cambios';}
   };
 
   window.usersPage=function(){
