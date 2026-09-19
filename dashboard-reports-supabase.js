@@ -66,14 +66,15 @@
     const s=session();
     const client=PuntoSupabase.client;
     const d=await directory();
-    const [openEntries,todayEntries,todayTasks,recentIncidents,recentLocations]=await Promise.all([
+    const [openEntries,todayEntries,todayTasks,recentIncidents,recentLocations,openIncidentCounts]=await Promise.all([
       client.from('time_entries').select('id,user_id,started_at').eq('company_id',s.companyId).eq('status','open'),
       client.from('time_entries').select('id,user_id,started_at,ended_at,status').eq('company_id',s.companyId).gte('started_at',new Date(`${today()}T00:00:00`).toISOString()).lt('started_at',new Date(new Date(`${today()}T00:00:00`).getTime()+86400000).toISOString()),
       client.from('tasks').select('id,title,description,assigned_to,priority,status,due_at').eq('company_id',s.companyId).gte('due_at',new Date(`${today()}T00:00:00`).toISOString()).lt('due_at',new Date(new Date(`${today()}T00:00:00`).getTime()+86400000).toISOString()).order('due_at',{ascending:true}).limit(8),
       client.from('incidents').select('id,title,user_id,type,status,created_at').eq('company_id',s.companyId).order('created_at',{ascending:false}).limit(6),
-      client.from('location_events').select('id,user_id,inside_geofence,geofence_id,recorded_at').eq('company_id',s.companyId).gte('recorded_at',new Date(Date.now()-24*60*60*1000).toISOString()).order('recorded_at',{ascending:false}).limit(200)
+      client.from('location_events').select('id,user_id,inside_geofence,geofence_id,recorded_at').eq('company_id',s.companyId).gte('recorded_at',new Date(Date.now()-24*60*60*1000).toISOString()).order('recorded_at',{ascending:false}).limit(200),
+      client.from('incidents').select('id',{count:'exact',head:true}).eq('company_id',s.companyId).neq('status','closed')
     ]);
-    for(const res of [openEntries,todayEntries,todayTasks,recentIncidents,recentLocations]) if(res.error) throw res.error;
+    for(const res of [openEntries,todayEntries,todayTasks,recentIncidents,recentLocations,openIncidentCounts]) if(res.error) throw res.error;
     const people=new Map(d.people.map(p=>[p.id,p]));
     const todayEntryIds=(todayEntries.data||[]).map(e=>e.id);
     let breaks=[];
@@ -90,7 +91,8 @@
       todayHours,
       tasks:(todayTasks.data||[]).map(t=>({...t,person:people.get(t.assigned_to)})),
       incidents:(recentIncidents.data||[]).map(i=>({...i,person:people.get(i.user_id)})),
-      geofenceAlerts:outside.length
+      geofenceAlerts:outside.length,
+      openIncidentCount:openIncidentCounts.count||0
     };
   }
 
@@ -114,7 +116,7 @@
         <div class="card metric"><small>Activos ahora</small><strong>${data.activePeople.length}</strong><span class="muted">con jornada abierta</span></div>
         <div class="card metric"><small>Tareas de hoy</small><strong>${data.tasks.length}</strong><span class="muted">${data.tasks.filter(t=>t.status!=='completed').length} pendientes</span></div>
         <div class="card metric"><small>Geofencing</small><strong>${data.geofenceAlerts}</strong><span class="muted">salidas de zona últimas 24 h</span></div>
-        <div class="card metric"><small>Incidencias</small><strong>${data.incidents.filter(i=>i.status!=='closed').length}</strong><span class="muted">abiertas o en revisión</span></div>
+        <div class="card metric"><small>Incidencias</small><strong>${data.openIncidentCount}</strong><span class="muted">abiertas o en revisión</span></div>
       </div>
       <div class="grid two" style="margin-top:15px">
         <section class="card"><div class="section-head"><h2>Estado del equipo</h2><button class="btn secondary" onclick="go('employees')">Ver empleados</button></div><div class="table-wrap"><table class="table"><thead><tr><th>Empleado</th><th>Equipo</th><th>Estado</th></tr></thead><tbody>${data.people.slice(0,10).map(p=>`<tr><td><b>${esc(p.name)}</b><br><span class="muted">${esc(p.jobTitle||p.role)}</span></td><td>${esc(p.team)}</td><td>${data.activePeople.some(a=>a.id===p.id)?'<span class="status online">Activo</span>':'<span class="status offline">Inactivo</span>'}</td></tr>`).join('')||emptyRow(3,'No hay empleados visibles.')}</tbody></table></div></section>
