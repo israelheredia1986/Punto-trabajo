@@ -212,7 +212,7 @@
   }
 
   function incidentRows(items){
-    return items.map(i=>`<tr><td><b>${esc(i.title)}</b><br><span class="muted">${esc(i.type)}${i.description?' · '+esc(i.description):''}</span></td><td>${esc(i.person?.name||'Empresa')}</td><td>${esc(localDateTime(i.created_at))}</td><td><span class="status ${incidentClass(i.status)}">${esc(INCIDENT_LABELS[i.status]||i.status)}</span></td><td><select onchange="PuntoOps.updateIncidentStatus('${i.id}',this.value)"><option value="${i.status}">${INCIDENT_LABELS[i.status]||i.status}</option><option value="open">Abierta</option><option value="review">En revisión</option><option value="closed">Cerrada</option></select></td></tr>`).join('')||emptyRow(5,'No hay incidencias visibles.');
+    return items.map(i=>`<tr><td><b>${esc(i.title)}</b><br><span class="muted">${esc(i.type)}${i.description?' · '+esc(i.description):''}</span></td><td>${esc(i.person?.name||'Empresa')}</td><td>${esc(localDateTime(i.created_at))}</td><td><span class="status ${incidentClass(i.status)}">${esc(INCIDENT_LABELS[i.status]||i.status)}</span></td><td><select onchange="PuntoOps.updateIncidentStatus('${i.id}',this.value)"><option value="${i.status}">${INCIDENT_LABELS[i.status]||i.status}</option><option value="open">Abierta</option><option value="review">En revisión</option><option value="closed">Cerrada</option></select><button class="btn secondary" style="margin-left:6px" onclick="PuntoOps.showIncidentDetail('${i.id}')">Detalle</button></td></tr>`).join('')||emptyRow(5,'No hay incidencias visibles.');
   }
 
   function incidentForm(session,d){
@@ -275,6 +275,14 @@
     incidentsPage();
   }
 
+  function showIncidentDetail(id){
+    const i=(window.PuntoOps._incidents||[]).find(x=>x.id===id);
+    if(!i)return;
+    const modal=document.createElement('div'); modal.className='modal-backdrop';
+    const wrap=document.createElement('div'); wrap.className='modal';
+    wrap.innerHTML='<div class="section-head"><h2>Detalle de incidencia</h2><button class="btn secondary">Cerrar</button></div><p><b>'+esc(i.title)+'</b></p><p>Empleado: '+esc(i.person?.name||'Empresa')+'<br>Tipo: '+esc(i.type)+'<br>Estado: '+esc(INCIDENT_LABELS[i.status]||i.status)+'<br>Creada: '+esc(localDateTime(i.created_at))+'</p><p>'+esc(i.description||'Sin descripción')+'</p>'+(i.resolved_at?'<p>Resuelta: '+esc(localDateTime(i.resolved_at))+'</p>':'');
+    wrap.querySelector('button').onclick=()=>modal.remove(); modal.appendChild(wrap); document.body.appendChild(modal);
+  }
   async function updateIncidentStatus(id,statusValue){
     if(!real()) return toastSafe('La cuenta demo no guarda cambios en Supabase.');
     if(!['open','review','closed'].includes(statusValue)) return;
@@ -399,6 +407,7 @@
     filterTasks,
     createIncident,
     updateIncidentStatus,
+    showIncidentDetail,
     filterIncidents,
     refreshHours,
     focus,
