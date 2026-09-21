@@ -7,9 +7,9 @@ const demoUsers = [
 ];
 
 const permissions = {
-  admin: ['dashboard','employees','users','map','tasks','hours','incidents','reports','worker'],
-  supervisor: ['dashboard','employees','map','tasks','hours','incidents','reports'],
-  employee: ['worker']
+  admin: ['dashboard','employees','users','map','tasks','hours','incidents','reports','worker','notifications','audit','settings'],
+  supervisor: ['dashboard','employees','map','tasks','hours','incidents','reports','notifications'],
+  employee: ['worker','notifications']
 };
 
 function getSession(){
