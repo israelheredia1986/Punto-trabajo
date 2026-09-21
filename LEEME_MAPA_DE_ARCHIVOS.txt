@@ -1,0 +1,38 @@
+MAPA DE ARCHIVOS  (cada .txt -> quitar la extensión .txt y copiar a la ruta indicada, sobrescribiendo)
+
+index.html.txt  ->  index.html
+app.js.txt  ->  app.js
+auth.js.txt  ->  auth.js
+core.js.txt  ->  core.js (NUEVO)
+supabase-client.js.txt  ->  supabase-client.js
+onboarding.js.txt  ->  onboarding.js
+geofencing.js.txt  ->  geofencing.js
+time-tracking.js.txt  ->  time-tracking.js
+live-location.js.txt  ->  live-location.js
+live-map.js.txt  ->  live-map.js
+worker-mobile.js.txt  ->  worker-mobile.js
+worker-actions.js.txt  ->  worker-actions.js
+employee-management.js.txt  ->  employee-management.js
+operations-supabase.js.txt  ->  operations-supabase.js
+dashboard-reports-supabase.js.txt  ->  dashboard-reports-supabase.js
+notifications.js.txt  ->  notifications.js (NUEVO)
+audit.js.txt  ->  audit.js (NUEVO)
+company-settings.js.txt  ->  company-settings.js (NUEVO)
+pwa.js.txt  ->  pwa.js (NUEVO)
+sw.js.txt  ->  sw.js (NUEVO)
+manifest.webmanifest.txt  ->  manifest.webmanifest (NUEVO)
+completion.css.txt  ->  completion.css (NUEVO)
+011_server_rules_settings.sql.txt  ->  supabase/migrations/011_server_rules_settings.sql (NUEVO)
+012_history_audit.sql.txt  ->  supabase/migrations/012_history_audit.sql (NUEVO)
+013_notifications_alerts.sql.txt  ->  supabase/migrations/013_notifications_alerts.sql (NUEVO)
+003_completion.test.sql.txt  ->  supabase/tests/003_completion.test.sql (NUEVO)
+invite-employee-index.ts.txt  ->  supabase/functions/invite-employee/index.ts
+ci.yml.txt  ->  .github/workflows/ci.yml
+DEPLOY.md.txt  ->  supabase/DEPLOY.md
+PRUEBAS.md.txt  ->  PRUEBAS.md (NUEVO)
+README.md.txt  ->  README.md
+
+ICONOS (PNG reales, copiar a la carpeta icons/ del repo, NUEVA):
+icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png, favicon-32.png
+
+NO CAMBIAN: styles.css, geofencing.css, employee-management.css, worker-mobile.css, supabase-config.js, migraciones 001-010, tests 001-002.
